@@ -35,6 +35,12 @@ import de.unirostock.sems.masymos.diff.exception.ModelTypeException;
 import de.unirostock.sems.xmlutils.ds.DocumentNode;
 import de.unirostock.sems.xmlutils.ds.TreeNode;
 
+/**
+ * Runnable Job generating a diff between 2 model versions
+ * 
+ * @author martin
+ *
+ */
 public class DiffJob implements Runnable {
 
 	/**
@@ -45,6 +51,7 @@ public class DiffJob implements Runnable {
 	
 	private static Logger log = LoggerFactory.getLogger(DiffJob.class);
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
+	protected static Manager manager = Manager.instance();
 
 	protected Node documentNodeA = null;
 	protected Node documentNodeB = null;
@@ -57,7 +64,12 @@ public class DiffJob implements Runnable {
 
 	protected Node diffNode = null;
 	protected Diff diff = null;
-
+	
+	/**
+	 * creates a new Diff Job. no intensive calculation included.
+	 * @param nodeA
+	 * @param nodeB
+	 */
 	public DiffJob(Node nodeA, Node nodeB) {
 
 		if( nodeA == null || nodeB == null )
@@ -68,16 +80,21 @@ public class DiffJob implements Runnable {
 		
 	}
 
+	/**
+	 * starts the diff calculation. Should run as separate thread, called through 
+	 */
 	@Override
 	public void run() {
 		
-		try (Transaction tx = graphDB.beginTx()) {
+		try (Transaction tx = manager.createNewTransaction()) {
 			
 			log.debug("Traversing document and model nodes");
 			
+			// traverse to Document nodes
 			documentNodeA = DBModelTraverser.getDocumentFromModel(documentNodeA);
 			documentNodeB = DBModelTraverser.getDocumentFromModel(documentNodeB);
-
+			
+			// traverse to Model nodes (one below document)
 			modelNodeA = DBModelTraverser.getModelFromDocument(documentNodeA);
 			modelNodeB = DBModelTraverser.getModelFromDocument(documentNodeB);
 			

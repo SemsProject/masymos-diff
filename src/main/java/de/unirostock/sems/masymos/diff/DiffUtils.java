@@ -22,6 +22,7 @@ import de.unirostock.sems.masymos.diff.exception.ModelAccessException;
 
 public abstract class DiffUtils {
 	
+	protected static Manager manager = Manager.instance();
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
 	
 	public static String getModelType( Node modelNode ) {
@@ -86,7 +87,7 @@ public abstract class DiffUtils {
 		
 		Map<String, Node> partList = new HashMap<String, Node>();
 		
-		try ( Transaction tx = graphDB.beginTx() ) {
+		try ( Transaction tx = manager.createNewTransaction() ) {
 			
 			// get ID of the model itself
 			insertIntoPartList(modelNode, partList);

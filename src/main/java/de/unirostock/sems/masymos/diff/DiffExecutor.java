@@ -38,6 +38,7 @@ public class DiffExecutor {
 	// ----------------------------------------
 	
 	protected GraphDatabaseService graphDB = null;
+	protected Manager manager = null;
 	protected ExecutorService executor = null;
 	
 	protected int numThreads = 5;
@@ -45,8 +46,11 @@ public class DiffExecutor {
 	
 	private DiffExecutor() {
 		
+		if( manager == null )
+			manager = Manager.instance();
+		
 		if( graphDB == null )
-			graphDB = Manager.instance().getDatabase();
+			graphDB = manager.getDatabase();
 		
 		buildThreadPoolExecutor();
 	}
@@ -117,7 +121,7 @@ public class DiffExecutor {
 			log.debug("restrict to SBML models");
 		}
 		
-		try ( Transaction tx = graphDB.beginTx(); ) {
+		try ( Transaction tx = manager.createNewTransaction() ) {
 			log.debug("start graph db transaction");
 			
 			Result result = graphDB.execute(query, parameter);
@@ -191,7 +195,7 @@ public class DiffExecutor {
 		do {
 			elementCount = 0;
 			
-			try ( Transaction tx = graphDB.beginTx() ) {
+			try ( Transaction tx = manager.createNewTransaction() ) {
 				
 				// using a set, to avoid deleting an already deleted node
 				Set<Node> deleteSet = new HashSet<Node>();
@@ -240,7 +244,7 @@ public class DiffExecutor {
 		final String diffNodeQuery = "MATCH (d:DIFF)-[r1:HAS_DIFF_ENTRY]->(n:DIFF_NODE)-[r2]->(mn) WITH r1,r2,n LIMIT 1000 DELETE r1,r2,n";
 		final String diffQuery = "MATCH (:DOCUMENT)-[r1:HAS_DIFF]->(d:DIFF)-[r2:HAS_DIFF]->(:DOCUMENT) WITH r1,r2,d LIMIT 1000 DELETE r1,r2,d";
 		
-		try ( Transaction tx = graphDB.beginTx() ) {
+		try ( Transaction tx = manager.createNewTransaction() ) {
 			log.info("Removing old nodes via cypher");
 			
 			// first delete all diff sub-nodes
