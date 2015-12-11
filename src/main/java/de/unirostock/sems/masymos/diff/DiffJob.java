@@ -139,6 +139,33 @@ public class DiffJob implements Runnable {
 		}
 
 	}
+	
+	private Node createDiffNode() {
+
+		Node diffNode = null;
+
+		diffNode = graphDB.createNode();
+		diffNode.addLabel( NodeLabel.DiffTypes.DIFF );
+		// set properties
+		diffNode.setProperty(Property.DiffNode.GENERATED, new Date().getTime());
+		diffNode.setProperty(Property.DiffNode.GENERATOR_VERSION, GENERATOR_VERSION);
+
+		this.diffNode = diffNode;
+
+		return diffNode;
+	}
+
+	private void linkDiffNode() {
+
+		// create relations
+		Relationship relA = documentNodeA.createRelationshipTo(diffNode, Relation.DiffRelTypes.HAS_DIFF);
+		Relationship relB = diffNode.createRelationshipTo(documentNodeB, Relation.DiffRelTypes.HAS_DIFF);
+
+		// set properties for relation
+		relA.setProperty(Property.DiffNode.DIFF_PART, "A");
+		relB.setProperty(Property.DiffNode.DIFF_PART, "B");
+
+	}
 
 	private Diff generateDiff() throws ModelTypeException, ModelAccessException, DiffProcessingException {
 
@@ -185,24 +212,6 @@ public class DiffJob implements Runnable {
 
 		this.diff = diff;
 		return diff;
-	}
-
-	private CellMLDocument parseCellMlDocument( URL document ) throws ModelAccessException {
-
-		CellMLValidator validator = new CellMLValidator();
-		if( validator.validate(document) == false )
-			throw new ModelAccessException("Model is invalid: ", validator.getError());
-
-		return validator.getDocument();
-	}
-
-	private SBMLDocument parseSbmlDocument( URL document ) throws ModelAccessException {
-
-		SBMLValidator validator = new SBMLValidator();
-		if( validator.validate(document) == false )
-			throw new ModelAccessException("Model is invalid: ", validator.getError());
-
-		return validator.getDocument();
 	}
 
 	private void insertDiff() {
@@ -292,83 +301,6 @@ public class DiffJob implements Runnable {
 		
 	}
 
-	protected DocumentNode getDocumentNodeFromXPath( ModelDocument model, String xPath ) {
-
-		// parse XPath
-		TreeNode tree = model.getTreeDocument().getNodeByPath(xPath);
-		
-		if( tree == null )
-			return null;
-		
-		// check if DocumentNode
-		if( tree instanceof DocumentNode )
-			return (DocumentNode) tree;
-		else {
-			return tree.getParent();
-		}
-
-	}
-	
-	protected XmlId getIdFromXmlNode( DocumentNode node, Map<String, Node> partList ) {
-		
-		// null check
-		if( node == null )
-			return new XmlId(null, false);
-		
-		// get either the id or the name (CellML)
-		String prefix = null;
-		String id = node.getId();
-		if( id == null || id.isEmpty() )
-			id = node.getAttributeValue("name");
-		
-		// if node is a (CellML) variable, add prefix
-		if( node.getTagName().equals("variable") ) {
-			XmlId prefixId = getIdFromXmlNode( node.getParent(), partList );
-			prefix = prefixId != null ? prefixId.getId() : null;
-		}
-		
-		// if current node has no id nor name or the id/name is not in the part list -> try the parent
-		if( id == null || id.isEmpty() || partList.containsKey(id) == false ) {
-			// returns null, if parent is null (e.g. not existing)
-			XmlId xmlId = getIdFromXmlNode( node.getParent(), partList );
-			if( xmlId != null) {
-				xmlId.increaseInheritLevel();
-				return xmlId;
-			}
-			else
-				return new XmlId(null, false);
-		}
-		else
-			return new XmlId( prefix != null ? prefix + ":" + id : id, false );
-	}
-
-	private Node createDiffNode() {
-
-		Node diffNode = null;
-
-		diffNode = graphDB.createNode();
-		diffNode.addLabel( NodeLabel.DiffTypes.DIFF );
-		// set properties
-		diffNode.setProperty(Property.DiffNode.GENERATED, new Date().getTime());
-		diffNode.setProperty(Property.DiffNode.GENERATOR_VERSION, GENERATOR_VERSION);
-
-		this.diffNode = diffNode;
-
-		return diffNode;
-	}
-
-	private void linkDiffNode() {
-
-		// create relations
-		Relationship relA = documentNodeA.createRelationshipTo(diffNode, Relation.DiffRelTypes.HAS_DIFF);
-		Relationship relB = diffNode.createRelationshipTo(documentNodeB, Relation.DiffRelTypes.HAS_DIFF);
-
-		// set properties for relation
-		relA.setProperty(Property.DiffNode.DIFF_PART, "A");
-		relB.setProperty(Property.DiffNode.DIFF_PART, "B");
-
-	}
-
 	protected Node addPatchNode( PatchType type, Node oldNode, Node newNode, XmlId oldId, XmlId newId, Element entry ) {
 		
 		// label definition
@@ -432,6 +364,76 @@ public class DiffJob implements Runnable {
 		}
 		
 		return patchNode;
+	}
+	
+	// ----------------------------------------
+	
+	private CellMLDocument parseCellMlDocument( URL document ) throws ModelAccessException {
+
+		CellMLValidator validator = new CellMLValidator();
+		if( validator.validate(document) == false )
+			throw new ModelAccessException("Model is invalid: ", validator.getError());
+
+		return validator.getDocument();
+	}
+
+	private SBMLDocument parseSbmlDocument( URL document ) throws ModelAccessException {
+
+		SBMLValidator validator = new SBMLValidator();
+		if( validator.validate(document) == false )
+			throw new ModelAccessException("Model is invalid: ", validator.getError());
+
+		return validator.getDocument();
+	}
+	
+	protected DocumentNode getDocumentNodeFromXPath( ModelDocument model, String xPath ) {
+
+		// parse XPath
+		TreeNode tree = model.getTreeDocument().getNodeByPath(xPath);
+		
+		if( tree == null )
+			return null;
+		
+		// check if DocumentNode
+		if( tree instanceof DocumentNode )
+			return (DocumentNode) tree;
+		else {
+			return tree.getParent();
+		}
+
+	}
+	
+	protected XmlId getIdFromXmlNode( DocumentNode node, Map<String, Node> partList ) {
+		
+		// null check
+		if( node == null )
+			return new XmlId(null, false);
+		
+		// get either the id or the name (CellML)
+		String prefix = null;
+		String id = node.getId();
+		if( id == null || id.isEmpty() )
+			id = node.getAttributeValue("name");
+		
+		// if node is a (CellML) variable, add prefix
+		if( node.getTagName().equals("variable") ) {
+			XmlId prefixId = getIdFromXmlNode( node.getParent(), partList );
+			prefix = prefixId != null ? prefixId.getId() : null;
+		}
+		
+		// if current node has no id nor name or the id/name is not in the part list -> try the parent
+		if( id == null || id.isEmpty() || partList.containsKey(id) == false ) {
+			// returns null, if parent is null (e.g. not existing)
+			XmlId xmlId = getIdFromXmlNode( node.getParent(), partList );
+			if( xmlId != null) {
+				xmlId.increaseInheritLevel();
+				return xmlId;
+			}
+			else
+				return new XmlId(null, false);
+		}
+		else
+			return new XmlId( prefix != null ? prefix + ":" + id : id, false );
 	}
 
 	protected void addXmlAttributesToNode( Node node, Element entry ) {
