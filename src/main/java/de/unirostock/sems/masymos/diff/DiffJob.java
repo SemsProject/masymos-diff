@@ -50,7 +50,7 @@ public class DiffJob implements Runnable {
 	 * version of the generator routine.
 	 * Should be increased, with BiVeS update!
 	 */
-	public static final int GENERATOR_VERSION = 1;
+	public static final int GENERATOR_VERSION = 2;
 	
 	private static Logger log = LoggerFactory.getLogger(DiffJob.class);
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
@@ -272,7 +272,6 @@ public class DiffJob implements Runnable {
 		}
 		
 		String newXPath = entry.getAttributeValue("newPath");
-		
 		if( newXPath != null ) {
 			newXmlNode = getDocumentNodeFromXPath(modelB, newXPath);
 			newId = getIdFromXmlNode( newXmlNode, partListB );
