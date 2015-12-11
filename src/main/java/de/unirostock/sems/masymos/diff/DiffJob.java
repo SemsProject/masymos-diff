@@ -5,8 +5,6 @@ import java.text.MessageFormat;
 import java.util.Date;
 import java.util.Map;
 
-import javax.mail.MethodNotSupportedException;
-
 import org.jdom2.Attribute;
 import org.jdom2.Element;
 import org.neo4j.graphdb.GraphDatabaseService;

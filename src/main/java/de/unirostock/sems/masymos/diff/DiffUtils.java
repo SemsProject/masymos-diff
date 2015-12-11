@@ -13,12 +13,12 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 
+import de.unirostock.sems.masymos.database.Manager;
 import de.unirostock.sems.masymos.diff.configuration.NodeLabel;
 import de.unirostock.sems.masymos.diff.configuration.Property;
 import de.unirostock.sems.masymos.diff.configuration.Relation;
-import de.unirostock.sems.masymos.database.Manager;
-import de.unirostock.sems.masymos.diff.traverse.DBModelTraverser;
 import de.unirostock.sems.masymos.diff.exception.ModelAccessException;
+import de.unirostock.sems.masymos.diff.traverse.DBModelTraverser;
 
 public abstract class DiffUtils {
 	
