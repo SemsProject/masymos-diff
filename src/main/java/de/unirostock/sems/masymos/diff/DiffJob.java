@@ -5,11 +5,15 @@ import java.text.MessageFormat;
 import java.util.Date;
 import java.util.Map;
 
+import javax.mail.MethodNotSupportedException;
+
 import org.jdom2.Attribute;
 import org.jdom2.Element;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,16 +26,17 @@ import de.unirostock.sems.bives.ds.ModelDocument;
 import de.unirostock.sems.bives.sbml.algorithm.SBMLValidator;
 import de.unirostock.sems.bives.sbml.api.SBMLDiff;
 import de.unirostock.sems.bives.sbml.parser.SBMLDocument;
+import de.unirostock.sems.masymos.database.Manager;
 import de.unirostock.sems.masymos.diff.configuration.NodeLabel;
+import de.unirostock.sems.masymos.diff.configuration.PatchType;
 import de.unirostock.sems.masymos.diff.configuration.Property;
 import de.unirostock.sems.masymos.diff.configuration.Relation;
-import de.unirostock.sems.masymos.database.Manager;
-import de.unirostock.sems.masymos.diff.traverse.DBModelTraverser;
 import de.unirostock.sems.masymos.diff.data.XmlId;
 import de.unirostock.sems.masymos.diff.exception.DiffException;
 import de.unirostock.sems.masymos.diff.exception.DiffProcessingException;
 import de.unirostock.sems.masymos.diff.exception.ModelAccessException;
 import de.unirostock.sems.masymos.diff.exception.ModelTypeException;
+import de.unirostock.sems.masymos.diff.traverse.DBModelTraverser;
 import de.unirostock.sems.xmlutils.ds.DocumentNode;
 import de.unirostock.sems.xmlutils.ds.TreeNode;
 
@@ -234,7 +239,7 @@ public class DiffJob implements Runnable {
 			XmlId oldId = getIdFromXmlNode( oldXmlNode, partListA );
 
 			if( partListA.containsKey(oldId.getId()) ) {
-				addDeleteNode( partListA.get(oldId.getId()), oldId, entry );
+				addDiffNode( PatchType.PATCH_INSERT, partListA.get(oldId.getId()), null, oldId, null, entry );
 				numDeletes++;
 			}
 			else
@@ -249,7 +254,7 @@ public class DiffJob implements Runnable {
 			XmlId newId = getIdFromXmlNode( newXmlNode, partListB );
 
 			if( partListB.containsKey(newId.getId()) ) {
-				addInsertNode( partListB.get(newId.getId()), newId, entry );
+				addDiffNode( PatchType.PATCH_INSERT, null, partListB.get(newId.getId()), null, newId, entry );
 				numInserts++;
 			}
 			else
@@ -269,7 +274,7 @@ public class DiffJob implements Runnable {
 			XmlId newId = getIdFromXmlNode( newXmlNode, partListB );
 
 			if( partListA.containsKey(oldId.getId()) && partListB.containsKey(newId.getId()) ) {
-				addUpdateNode( partListA.get(oldId.getId()), partListB.get(newId.getId()), oldId, newId, entry );
+				addDiffNode( PatchType.PATCH_MOVE, partListA.get(oldId.getId()), partListB.get(newId.getId()), oldId, newId, entry );
 				numUpdates++;
 			}
 			else
@@ -288,7 +293,7 @@ public class DiffJob implements Runnable {
 			XmlId newId = getIdFromXmlNode( newXmlNode, partListB );
 
 			if( partListA.containsKey(oldId.getId()) && partListB.containsKey(newId.getId()) ) {
-				addMoveNode( partListA.get(oldId.getId()), partListB.get(newId.getId()), oldId, newId, entry );
+				addDiffNode( PatchType.PATCH_UPDATE, partListA.get(oldId.getId()), partListB.get(newId.getId()), oldId, newId, entry );
 				numMoves++;
 			}
 			else
@@ -376,97 +381,69 @@ public class DiffJob implements Runnable {
 
 	}
 
-	protected Node addDeleteNode( Node oldNode, XmlId oldId, Element entry ) {
+	protected Node addDiffNode( PatchType type, Node oldNode, Node newNode, XmlId oldId, XmlId newId, Element entry ) {
+		
+		// label definition
+		Label nodeLabel = null;
+		RelationshipType relationTypeA = null;
+		RelationshipType relationTypeB = null;
+		
+		// distinguish node and label names
+		switch (type) {
+			case PATCH_DELETE:
+				nodeLabel = NodeLabel.DiffTypes.DIFF_DELETE;
+				relationTypeA = Relation.DiffRelTypes.DIFF_DELETED;
+				break;
+				
+			case PATCH_INSERT:
+				nodeLabel = NodeLabel.DiffTypes.DIFF_INSERT;
+				relationTypeB = Relation.DiffRelTypes.DIFF_INSERTED;
+				break;
+				
+			case PATCH_MOVE:
+				nodeLabel = NodeLabel.DiffTypes.DIFF_MOVE;
+				relationTypeA = Relation.DiffRelTypes.DIFF_MOVE_OLD;
+				relationTypeB = Relation.DiffRelTypes.DIFF_MOVE_NEW;
+				break;
+				
+			case PATCH_UPDATE:
+				nodeLabel = NodeLabel.DiffTypes.DIFF_UPDATE;
+				relationTypeA = Relation.DiffRelTypes.DIFF_UPDATE_OLD;
+				relationTypeB = Relation.DiffRelTypes.DIFF_UPDATE_NEW;
+				break;
+				
+			default:
+				throw new IllegalArgumentException("Unknown patch type was given: " + type.toString());
+		}
 		
 		// create node, add labels and xml attributes
-		Node deleteNode = graphDB.createNode();
-		deleteNode.addLabel( NodeLabel.DiffTypes.DIFF_DELETE );
-		deleteNode.addLabel( NodeLabel.DiffTypes.DIFF_NODE );
-		addXmlAttributesToNode(deleteNode, entry);
-		
-		// wire the node
-		Relationship relationA = deleteNode.createRelationshipTo( oldNode, Relation.DiffRelTypes.DIFF_DELETED );
-		diffNode.createRelationshipTo( deleteNode, Relation.DiffRelTypes.HAS_DIFF_ENTRY );
+		Node patchNode = graphDB.createNode();
+		patchNode.addLabel( nodeLabel );
+		patchNode.addLabel( NodeLabel.DiffTypes.DIFF_NODE );
 		
 		// inherit attribute stuff
-		deleteNode.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() );
-		
-		relationA.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() );
-		relationA.setProperty( Property.DiffNode.INHERIT_LEVEL, oldId.getInheritLevel() );
-		
-		return deleteNode;
-	}
-
-	protected Node addInsertNode( Node newNode, XmlId newId, Element entry ) {
-
-		// create node, add labels and xml attributes
-		Node insertNode = graphDB.createNode();
-		insertNode.addLabel( NodeLabel.DiffTypes.DIFF_INSERT );
-		insertNode.addLabel( NodeLabel.DiffTypes.DIFF_NODE );
-		addXmlAttributesToNode(insertNode, entry);
+		patchNode.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() || newId.isInherit() );
+		// other xml attributes
+		addXmlAttributesToNode(patchNode, entry);
 		
 		// wire the node
-		Relationship relationB = insertNode.createRelationshipTo( newNode, Relation.DiffRelTypes.DIFF_INSERTED );
-		diffNode.createRelationshipTo( insertNode, Relation.DiffRelTypes.HAS_DIFF_ENTRY );
-
-		// inherit attribute stuff
-		insertNode.setProperty( Property.DiffNode.INHERIT, newId.isInherit() );
+		diffNode.createRelationshipTo( patchNode, Relation.DiffRelTypes.HAS_DIFF_ENTRY );
 		
-		relationB.setProperty( Property.DiffNode.INHERIT, newId.isInherit() );
-		relationB.setProperty( Property.DiffNode.INHERIT_LEVEL, newId.getInheritLevel() );
+		if( relationTypeA != null && oldNode != null ) {
+			Relationship relationA = patchNode.createRelationshipTo( oldNode, relationTypeA );
+			
+			relationA.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() );
+			relationA.setProperty( Property.DiffNode.INHERIT_LEVEL, oldId.getInheritLevel() );
+		}
 		
-		return insertNode;
-	}
-
-	protected Node addUpdateNode( Node oldNode, Node newNode, XmlId oldId, XmlId newId, Element entry ) {
-
-		// create node, add labels and xml attributes
-		Node updateNode = graphDB.createNode();
-		updateNode.addLabel( NodeLabel.DiffTypes.DIFF_UPDATE );
-		updateNode.addLabel( NodeLabel.DiffTypes.DIFF_NODE );
-		addXmlAttributesToNode(updateNode, entry);
+		if( relationTypeB != null && newNode != null ) {
+			Relationship relationB = patchNode.createRelationshipTo( newNode, relationTypeB );
+			
+			relationB.setProperty( Property.DiffNode.INHERIT, newId.isInherit() );
+			relationB.setProperty( Property.DiffNode.INHERIT_LEVEL, newId.getInheritLevel() );
+		}
 		
-		// wire the node
-		Relationship relationA = updateNode.createRelationshipTo( oldNode, Relation.DiffRelTypes.DIFF_UPDATE_OLD );
-		Relationship relationB = updateNode.createRelationshipTo( newNode, Relation.DiffRelTypes.DIFF_UPDATE_NEW );
-		diffNode.createRelationshipTo( updateNode, Relation.DiffRelTypes.HAS_DIFF_ENTRY );
-		
-		// inherit attribute stuff
-		updateNode.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() || newId.isInherit() );
-		
-		relationA.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() );
-		relationA.setProperty( Property.DiffNode.INHERIT_LEVEL, oldId.getInheritLevel() );
-		
-		relationB.setProperty( Property.DiffNode.INHERIT, newId.isInherit() );
-		relationB.setProperty( Property.DiffNode.INHERIT_LEVEL, newId.getInheritLevel() );
-
-		return updateNode;
-	}
-
-	protected Node addMoveNode( Node oldNode, Node newNode, XmlId oldId, XmlId newId, Element entry ) {
-		
-		// create node, add labels and xml attributes
-		Node moveNode = graphDB.createNode();
-		moveNode.addLabel( NodeLabel.DiffTypes.DIFF_MOVE );
-		moveNode.addLabel( NodeLabel.DiffTypes.DIFF_NODE );
-		addXmlAttributesToNode(moveNode, entry);
-		
-		// wire the node
-		Relationship relationA = moveNode.createRelationshipTo( oldNode, Relation.DiffRelTypes.DIFF_MOVE_OLD );
-		Relationship relationB = moveNode.createRelationshipTo( newNode, Relation.DiffRelTypes.DIFF_MOVE_NEW );
-		diffNode.createRelationshipTo( moveNode, Relation.DiffRelTypes.HAS_DIFF_ENTRY );
-		
-		// inherit attribute stuff
-		moveNode.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() || newId.isInherit() );
-		
-		relationA.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() );
-		relationA.setProperty( Property.DiffNode.INHERIT_LEVEL, oldId.getInheritLevel() );
-		
-		relationB.setProperty( Property.DiffNode.INHERIT, newId.isInherit() );
-		relationB.setProperty( Property.DiffNode.INHERIT_LEVEL, newId.getInheritLevel() );
-
-		
-		return moveNode;
+		return patchNode;
 	}
 
 	protected void addXmlAttributesToNode( Node node, Element entry ) {
