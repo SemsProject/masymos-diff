@@ -346,6 +346,9 @@ public class DiffJob implements Runnable {
 		// other xml attributes
 		addXmlAttributesToNode(patchNode, entry);
 		
+		// wire the triggeredBy relation
+		addTriggeredByRelation(patchNode, entry);
+		
 		// wire the node
 		diffNode.createRelationshipTo( patchNode, Relation.DiffRelTypes.HAS_DIFF_ENTRY );
 		
@@ -436,12 +439,27 @@ public class DiffJob implements Runnable {
 			return new XmlId( prefix != null ? prefix + ":" + id : id, false );
 	}
 
-	protected void addXmlAttributesToNode( Node node, Element entry ) {
+	protected void addXmlAttributesToNode( Node patchNode, Element entry ) {
 
 		for( Attribute attr : entry.getAttributes() ) {
-			node.setProperty( Property.DiffNode.XML_ATTR_PREFIX + attr.getName(), attr.getValue() );
+			patchNode.setProperty( Property.DiffNode.XML_ATTR_PREFIX + attr.getName(), attr.getValue() );
 		}
 
+	}
+	
+	protected void addTriggeredByRelation( Node patchNode, Element entry ) {
+		
+		String triggerdBy = entry.getAttributeValue("triggeredBy");
+		if( triggerdBy == null )
+			return;
+		
+		Node targetNode = DiffUtils.getPatchNodeByBivesId(diffNode, triggerdBy);
+		if( targetNode == null ) {
+			log.warn("Could not find patch node with bives.id={} for triggeredBy relation", triggerdBy);
+			return;
+		}
+		
+		patchNode.createRelationshipTo(targetNode, Relation.DiffRelTypes.DIFF_TRIGGERED_BY);
 	}
 
 	// ----------------------------------------

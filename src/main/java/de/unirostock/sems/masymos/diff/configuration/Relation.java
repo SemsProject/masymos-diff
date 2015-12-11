@@ -17,8 +17,9 @@ public class Relation extends de.unirostock.sems.masymos.configuration.Relation 
 		DIFF_UPDATE_OLD,
 		DIFF_UPDATE_NEW,
 		DIFF_MOVE_OLD,
-		DIFF_MOVE_NEW
+		DIFF_MOVE_NEW,
 		
+		DIFF_TRIGGERED_BY
 	}
 	
 }

@@ -11,6 +11,7 @@ import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 
 import de.unirostock.sems.masymos.database.Manager;
@@ -25,6 +26,12 @@ public abstract class DiffUtils {
 	protected static Manager manager = Manager.instance();
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
 	
+	/**
+	 * Return the type of a model
+	 * 
+	 * @param modelNode
+	 * @return [SBML | CELLML]
+	 */
 	public static String getModelType( Node modelNode ) {
 		
 		if( modelNode == null )
@@ -45,6 +52,13 @@ public abstract class DiffUtils {
 		return null;
 	}
 	
+	/**
+	 * Downloads a file and returns its content as String
+	 * 
+	 * @param documentNode
+	 * @return
+	 * @throws ModelAccessException
+	 */
 	public static String downloadDocumentToString( Node documentNode ) throws ModelAccessException {
 		
 		URL url = null;
@@ -58,6 +72,13 @@ public abstract class DiffUtils {
 		
 	}
 	
+	/**
+	 * Returns the origin a a document
+	 * 
+	 * @param documentNode
+	 * @return
+	 * @throws ModelAccessException
+	 */
 	public static URL getUrlFromDocument( Node documentNode ) throws ModelAccessException {
 		
 		String url = null;
@@ -150,6 +171,35 @@ public abstract class DiffUtils {
 		}
 		
 		return id;
+	}
+	
+	public static Node getPatchNodeByBivesId( Node diffNode, String bivesId ) {
+		
+		if( diffNode.hasLabel(NodeLabel.DiffTypes.DIFF) == false )
+			throw new IllegalArgumentException("The diff node has not a DIFF lable.");
+		
+		Node patchNode = null;
+		try ( Transaction tx = manager.createNewTransaction() ) {
+			// query parameter
+			Map<String, Object> parameter = new HashMap<String, Object>();
+			parameter.put( "diffId", diffNode.getId() );
+			parameter.put( "bivesId", bivesId );
+			
+			parameter.put( "diffLabel", NodeLabel.DiffTypes.DIFF );
+			parameter.put( "diffNodeLabel", NodeLabel.DiffTypes.DIFF_NODE );
+			parameter.put( "relation", Relation.DiffRelTypes.HAS_DIFF_ENTRY );
+			parameter.put( "bivesIdProperty", Property.DiffNode.XML_ATTR_PREFIX + "id" );
+			
+			final String query = "MATCH (d:{diffLabel})-[{relation}]->(e:{diffNodeLabel}) WHERE id(d)={diffId} and e.`{bivesIdProperty}`={bivesId} RETURN e LIMIT 1;";
+			Result result = graphDB.execute(query, parameter);
+			if( result.hasNext() ) {
+				patchNode = (Node) result.columnAs("e");
+			}
+			
+			tx.success();
+		}
+		
+		return patchNode;
 	}
 	
 }
