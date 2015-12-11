@@ -231,75 +231,66 @@ public class DiffJob implements Runnable {
 		
 		// iterate over deletes
 		for( Element entry : diff.getPatch().getDeletes().getChildren() ) {
-			String oldXPath = entry.getAttributeValue("oldPath");
-			DocumentNode oldXmlNode = getDocumentNodeFromXPath(modelA, oldXPath);
-
-			XmlId oldId = getIdFromXmlNode( oldXmlNode, partListA );
-
-			if( partListA.containsKey(oldId.getId()) ) {
-				addDiffNode( PatchType.PATCH_INSERT, partListA.get(oldId.getId()), null, oldId, null, entry );
+			if( addPatch(PatchType.DELETE, entry, partListA, partListB) )
 				numDeletes++;
-			}
-			else
-				log.warn("Didn't found corresponding graph node with id {} for {} in model A", oldId, oldXPath);
 		}
 
 		// iterate over inserts
 		for( Element entry : diff.getPatch().getInserts().getChildren() ) {
-			String newXPath = entry.getAttributeValue("newPath");
-			DocumentNode newXmlNode = getDocumentNodeFromXPath(modelB, newXPath);
-
-			XmlId newId = getIdFromXmlNode( newXmlNode, partListB );
-
-			if( partListB.containsKey(newId.getId()) ) {
-				addDiffNode( PatchType.PATCH_INSERT, null, partListB.get(newId.getId()), null, newId, entry );
+			if( addPatch(PatchType.INSERT, entry, partListA, partListB) )
 				numInserts++;
-			}
-			else
-				log.warn("Didn't found corresponding graph node with id {} for {} in model B", newId, newXPath);
-
 		}
 		
 		// iterate over updates
 		for( Element entry : diff.getPatch().getUpdates().getChildren() ) {
-			String oldXPath = entry.getAttributeValue("oldPath");
-			String newXPath = entry.getAttributeValue("newPath");
-
-			DocumentNode oldXmlNode = getDocumentNodeFromXPath(modelA, oldXPath);
-			DocumentNode newXmlNode = getDocumentNodeFromXPath(modelB, newXPath);
-
-			XmlId oldId = getIdFromXmlNode( oldXmlNode, partListA );
-			XmlId newId = getIdFromXmlNode( newXmlNode, partListB );
-
-			if( partListA.containsKey(oldId.getId()) && partListB.containsKey(newId.getId()) ) {
-				addDiffNode( PatchType.PATCH_MOVE, partListA.get(oldId.getId()), partListB.get(newId.getId()), oldId, newId, entry );
+			if( addPatch(PatchType.UPDATE, entry, partListA, partListB) )
 				numUpdates++;
-			}
-			else
-				log.warn("Didn't found corresponding graph node with id A:{} and B:{} for A:{} and B:{}", newId, oldId, oldXPath, newXPath);
 		}
 
-		// iterate over updates
+		// iterate over moves
 		for( Element entry : diff.getPatch().getMoves().getChildren() ) {
-			String oldXPath = entry.getAttributeValue("oldPath");
-			String newXPath = entry.getAttributeValue("newPath");
-
-			DocumentNode oldXmlNode = getDocumentNodeFromXPath(modelA, oldXPath);
-			DocumentNode newXmlNode = getDocumentNodeFromXPath(modelB, newXPath);
-
-			XmlId oldId = getIdFromXmlNode( oldXmlNode, partListA );
-			XmlId newId = getIdFromXmlNode( newXmlNode, partListB );
-
-			if( partListA.containsKey(oldId.getId()) && partListB.containsKey(newId.getId()) ) {
-				addDiffNode( PatchType.PATCH_UPDATE, partListA.get(oldId.getId()), partListB.get(newId.getId()), oldId, newId, entry );
+			if( addPatch(PatchType.MOVE, entry, partListA, partListB) )
 				numMoves++;
-			}
-			else
-				log.warn("Didn't found corresponding graph node with id A:{} and B:{} for A:{} and B:{}", newId, oldId, oldXPath, newXPath);
 		}
 		
 		log.debug("diff node stat:   DELETES:{}, INSERTS:{}, UPDATES:{}, MOVES:{}", numDeletes, numInserts, numUpdates, numMoves);
 
+	}
+	
+	protected boolean addPatch( PatchType type, Element entry, Map<String, Node> partListA, Map<String, Node> partListB ) {
+		
+		DocumentNode oldXmlNode = null;
+		DocumentNode newXmlNode = null;
+		
+		XmlId oldId = null;
+		XmlId newId = null;
+		
+		String oldXPath = entry.getAttributeValue("oldPath");
+		if( oldXPath != null ) {
+			oldXmlNode = getDocumentNodeFromXPath(modelA, oldXPath);
+			oldId = getIdFromXmlNode( oldXmlNode, partListA );
+		}
+		
+		String newXPath = entry.getAttributeValue("newPath");
+		
+		if( newXPath != null ) {
+			newXmlNode = getDocumentNodeFromXPath(modelB, newXPath);
+			newId = getIdFromXmlNode( newXmlNode, partListB );
+		}
+		
+		if( (partListA.containsKey(oldId.getId()) || oldXPath == null) && (partListB.containsKey(oldId.getId()) || newXPath == null) ) {
+			Node patchNode = addPatchNode( type,
+					oldXPath != null ? partListA.get(oldId.getId()) : null,
+					newXPath != null ? partListB.get(newId.getId()) : null,
+					oldId, newId, entry
+				);
+			return patchNode != null;
+		}
+		else {
+			log.warn("Didn't found corresponding {} graph node with id A:{} and B:{} for A:{} and B:{}", type, newId, oldId, oldXPath, newXPath);
+			return false;
+		}
+		
 	}
 
 	protected DocumentNode getDocumentNodeFromXPath( ModelDocument model, String xPath ) {
@@ -379,7 +370,7 @@ public class DiffJob implements Runnable {
 
 	}
 
-	protected Node addDiffNode( PatchType type, Node oldNode, Node newNode, XmlId oldId, XmlId newId, Element entry ) {
+	protected Node addPatchNode( PatchType type, Node oldNode, Node newNode, XmlId oldId, XmlId newId, Element entry ) {
 		
 		// label definition
 		Label nodeLabel = null;
@@ -388,23 +379,23 @@ public class DiffJob implements Runnable {
 		
 		// distinguish node and label names
 		switch (type) {
-			case PATCH_DELETE:
+			case DELETE:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_DELETE;
 				relationTypeA = Relation.DiffRelTypes.DIFF_DELETED;
 				break;
 				
-			case PATCH_INSERT:
+			case INSERT:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_INSERT;
 				relationTypeB = Relation.DiffRelTypes.DIFF_INSERTED;
 				break;
 				
-			case PATCH_MOVE:
+			case MOVE:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_MOVE;
 				relationTypeA = Relation.DiffRelTypes.DIFF_MOVE_OLD;
 				relationTypeB = Relation.DiffRelTypes.DIFF_MOVE_NEW;
 				break;
 				
-			case PATCH_UPDATE:
+			case UPDATE:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_UPDATE;
 				relationTypeA = Relation.DiffRelTypes.DIFF_UPDATE_OLD;
 				relationTypeB = Relation.DiffRelTypes.DIFF_UPDATE_NEW;
