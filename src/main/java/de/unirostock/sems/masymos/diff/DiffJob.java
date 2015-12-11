@@ -256,7 +256,7 @@ public class DiffJob implements Runnable {
 				log.warn("Didn't found corresponding graph node with id {} for {} in model B", newId, newXPath);
 
 		}
-
+		
 		// iterate over updates
 		for( Element entry : diff.getPatch().getUpdates().getChildren() ) {
 			String oldXPath = entry.getAttributeValue("oldPath");
