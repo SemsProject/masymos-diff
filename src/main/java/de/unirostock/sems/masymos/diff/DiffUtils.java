@@ -185,15 +185,10 @@ public abstract class DiffUtils {
 			parameter.put( "diffId", diffNode.getId() );
 			parameter.put( "bivesId", bivesId );
 			
-			parameter.put( "diffLabel", NodeLabel.DiffTypes.DIFF );
-			parameter.put( "diffNodeLabel", NodeLabel.DiffTypes.DIFF_NODE );
-			parameter.put( "relation", Relation.DiffRelTypes.HAS_DIFF_ENTRY );
-			parameter.put( "bivesIdProperty", Property.DiffNode.XML_ATTR_PREFIX + "id" );
-			
-			final String query = "MATCH (d:{diffLabel})-[{relation}]->(e:{diffNodeLabel}) WHERE id(d)={diffId} and e.`{bivesIdProperty}`={bivesId} RETURN e LIMIT 1;";
+			final String query = "MATCH (d:DIFF)-[HAS_DIFF_ENTRY]->(e:DIFF_NODE) WHERE id(d)={diffId} and e.`bives.id`={bivesId} RETURN e LIMIT 1;";
 			Result result = graphDB.execute(query, parameter);
 			if( result.hasNext() ) {
-				patchNode = (Node) result.columnAs("e");
+				patchNode = (Node) result.next().get("e");
 			}
 			
 			tx.success();

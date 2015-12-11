@@ -93,9 +93,15 @@ public class DiffJob implements Runnable {
 			
 			log.debug("Traversing document and model nodes");
 			
+			log.trace( "Document A labels: {}", documentNodeA.getLabels() );
+			log.trace( "Document B labels: {}", documentNodeB.getLabels() );
+			
 			// traverse to Document nodes
-			documentNodeA = DBModelTraverser.getDocumentFromModel(documentNodeA);
-			documentNodeB = DBModelTraverser.getDocumentFromModel(documentNodeB);
+//			documentNodeA = DBModelTraverser.getDocumentFromModel(documentNodeA);
+//			documentNodeB = DBModelTraverser.getDocumentFromModel(documentNodeB);
+			
+			if( documentNodeA == null || documentNodeB == null )
+				throw new IllegalArgumentException("One or both document nodes are null");
 			
 			// traverse to Model nodes (one below document)
 			modelNodeA = DBModelTraverser.getModelFromDocument(documentNodeA);
@@ -341,8 +347,6 @@ public class DiffJob implements Runnable {
 		patchNode.addLabel( nodeLabel );
 		patchNode.addLabel( NodeLabel.DiffTypes.DIFF_NODE );
 		
-		// inherit attribute stuff
-		patchNode.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() || newId.isInherit() );
 		// other xml attributes
 		addXmlAttributesToNode(patchNode, entry);
 		
@@ -351,12 +355,14 @@ public class DiffJob implements Runnable {
 		
 		// wire the node
 		diffNode.createRelationshipTo( patchNode, Relation.DiffRelTypes.HAS_DIFF_ENTRY );
+		boolean inherit = false;
 		
 		if( relationTypeA != null && oldNode != null ) {
 			Relationship relationA = patchNode.createRelationshipTo( oldNode, relationTypeA );
 			
 			relationA.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() );
 			relationA.setProperty( Property.DiffNode.INHERIT_LEVEL, oldId.getInheritLevel() );
+			inherit = oldId.isInherit() ? true : inherit;
 		}
 		
 		if( relationTypeB != null && newNode != null ) {
@@ -364,7 +370,11 @@ public class DiffJob implements Runnable {
 			
 			relationB.setProperty( Property.DiffNode.INHERIT, newId.isInherit() );
 			relationB.setProperty( Property.DiffNode.INHERIT_LEVEL, newId.getInheritLevel() );
+			inherit = newId.isInherit() ? true : inherit;
 		}
+		
+		// inherit attribute stuff
+		patchNode.setProperty( Property.DiffNode.INHERIT, inherit );
 		
 		return patchNode;
 	}

@@ -34,6 +34,14 @@ public class DiffExecutor {
 		
 		return instance;
 	}
+	
+	public static void setThreadPoolSize(int size) {
+		numThreads = size;
+	}
+	
+	public static void setQueryLimit(int limit) {
+		numQueryLimit = limit;
+	}
 
 	// ----------------------------------------
 	
@@ -41,8 +49,8 @@ public class DiffExecutor {
 	protected Manager manager = null;
 	protected ExecutorService executor = null;
 	
-	protected int numThreads = 5;
-	protected int numQueryLimit = 100;
+	protected static int numThreads = 5;
+	protected static int numQueryLimit = 100;
 	
 	private DiffExecutor() {
 		
