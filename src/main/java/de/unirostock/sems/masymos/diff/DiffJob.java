@@ -292,7 +292,10 @@ public class DiffJob implements Runnable {
 			newId = getIdFromXmlNode( newXmlNode, partListB );
 		}
 		
-		if( (partListA.containsKey(oldId.getId()) || oldXPath == null) && (partListB.containsKey(oldId.getId()) || newXPath == null) ) {
+		if(		(oldXPath == null || partListA.containsKey(oldId.getId()) ) &&
+				(newXPath == null || partListB.containsKey(newId.getId()) ) &&
+				!(oldXPath == null && newXPath == null) ) {
+			
 			Node patchNode = addPatchNode( type,
 					oldXPath != null ? partListA.get(oldId.getId()) : null,
 					newXPath != null ? partListB.get(newId.getId()) : null,
@@ -419,8 +422,10 @@ public class DiffJob implements Runnable {
 	protected XmlId getIdFromXmlNode( DocumentNode node, Map<String, Node> partList ) {
 		
 		// null check
-		if( node == null )
+		if( node == null ) {
+			log.trace("return XmlID:null, because no DocumentNode is also null");
 			return new XmlId(null, false);
+		}
 		
 		// get either the id or the name (CellML)
 		String prefix = null;
@@ -432,18 +437,23 @@ public class DiffJob implements Runnable {
 		if( node.getTagName().equals("variable") ) {
 			XmlId prefixId = getIdFromXmlNode( node.getParent(), partList );
 			prefix = prefixId != null ? prefixId.getId() : null;
+			log.trace("XmlId prefix {}, because CellMl variable", prefix);
 		}
 		
 		// if current node has no id nor name or the id/name is not in the part list -> try the parent
 		if( id == null || id.isEmpty() || partList.containsKey(id) == false ) {
 			// returns null, if parent is null (e.g. not existing)
+			log.trace("No id found, try to traserve upwards in XML");
 			XmlId xmlId = getIdFromXmlNode( node.getParent(), partList );
-			if( xmlId != null) {
+			if( xmlId.isEmpty() == false) {
+				log.trace("Found id on parent, increase inherit level");
 				xmlId.increaseInheritLevel();
 				return xmlId;
 			}
-			else
+			else {
+				log.warn("Did not found id on parent, very unusual.");
 				return new XmlId(null, false);
+			}
 		}
 		else
 			return new XmlId( prefix != null ? prefix + ":" + id : id, false );
