@@ -1,18 +1,29 @@
 package de.unirostock.sems.masymos.diff;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.ResIterator;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.rdf.model.StmtIterator;
 import org.jdom2.Attribute;
 import org.jdom2.Element;
+import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.index.UniqueFactory.UniqueEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,9 +32,11 @@ import de.unirostock.sems.bives.cellml.algorithm.CellMLValidator;
 import de.unirostock.sems.bives.cellml.api.CellMLDiff;
 import de.unirostock.sems.bives.cellml.parser.CellMLDocument;
 import de.unirostock.sems.bives.ds.ModelDocument;
+import de.unirostock.sems.bives.ds.Patch;
 import de.unirostock.sems.bives.sbml.algorithm.SBMLValidator;
 import de.unirostock.sems.bives.sbml.api.SBMLDiff;
 import de.unirostock.sems.bives.sbml.parser.SBMLDocument;
+import de.unirostock.sems.comodi.ChangeFactory;
 import de.unirostock.sems.masymos.database.Manager;
 import de.unirostock.sems.masymos.diff.configuration.NodeLabel;
 import de.unirostock.sems.masymos.diff.configuration.PatchType;
@@ -35,6 +48,7 @@ import de.unirostock.sems.masymos.diff.exception.DiffProcessingException;
 import de.unirostock.sems.masymos.diff.exception.ModelAccessException;
 import de.unirostock.sems.masymos.diff.exception.ModelTypeException;
 import de.unirostock.sems.masymos.diff.traverse.DBModelTraverser;
+import de.unirostock.sems.masymos.util.OntologyFactory;
 import de.unirostock.sems.xmlutils.ds.DocumentNode;
 import de.unirostock.sems.xmlutils.ds.TreeNode;
 
@@ -51,6 +65,7 @@ public class DiffJob implements Runnable {
 	 * Should be increased, with BiVeS update!
 	 */
 	public static final int GENERATOR_VERSION = 2;
+	public static final String COMODI_ONTOLOGY = "ComodiOntology";
 	
 	private static Logger log = LoggerFactory.getLogger(DiffJob.class);
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
@@ -67,6 +82,8 @@ public class DiffJob implements Runnable {
 
 	protected Node diffNode = null;
 	protected Diff diff = null;
+	
+	protected Map<String, Node> patchNodeMap = new HashMap<String, Node>();
 	
 	/**
 	 * creates a new Diff Job. no intensive calculation included.
@@ -124,6 +141,10 @@ public class DiffJob implements Runnable {
 			// do the actual work
 			log.debug("inserting diff into graph db");
 			insertDiff();
+			
+			// annotate with rdf
+			log.debug("annotating with rdf");
+			insertRDF( diff.getPatch().getAnnotations() );
 			
 			// commit stuff to the DB
 			log.debug("committing transaction");
@@ -229,41 +250,45 @@ public class DiffJob implements Runnable {
 		
 		log.info("part list size A:{}, B:{}", partListA.size(), partListB.size());
 		
+		// compute patch
+		log.debug("compute patch");
+		Patch patch = diff.getPatch();
+		
 		// add same stats
-		diffNode.setProperty( Property.DiffNode.NUM_DELETES, diff.getPatch().getNumDeletes() );
-		diffNode.setProperty( Property.DiffNode.NUM_INSERTS, diff.getPatch().getNumInserts() );
-		diffNode.setProperty( Property.DiffNode.NUM_UPDATES, diff.getPatch().getNumUpdates() );
-		diffNode.setProperty( Property.DiffNode.NUM_MOVES, diff.getPatch().getNumMoves() );
-		diffNode.setProperty( Property.DiffNode.NUM_NODE_CHANGES, diff.getPatch().getNumNodeChanges() );
-		diffNode.setProperty( Property.DiffNode.NUM_TEXT_CHANGES, diff.getPatch().getNumTextChanges() );
+		diffNode.setProperty( Property.DiffNode.NUM_DELETES, patch.getNumDeletes() );
+		diffNode.setProperty( Property.DiffNode.NUM_INSERTS, patch.getNumInserts() );
+		diffNode.setProperty( Property.DiffNode.NUM_UPDATES, patch.getNumUpdates() );
+		diffNode.setProperty( Property.DiffNode.NUM_MOVES, patch.getNumMoves() );
+		diffNode.setProperty( Property.DiffNode.NUM_NODE_CHANGES, patch.getNumNodeChanges() );
+		diffNode.setProperty( Property.DiffNode.NUM_TEXT_CHANGES, patch.getNumTextChanges() );
 		
 		if( log.isInfoEnabled() )
 			log.info( "bives diff stats: DELETES:{}, INSERTS:{}, UPDATES:{}, MOVES:{}, NODE_CHANGES:{}, TEXT_CHANGES:{}",
-						diff.getPatch().getNumDeletes(), diff.getPatch().getNumInserts(), diff.getPatch().getNumUpdates(),
-						diff.getPatch().getNumMoves(), diff.getPatch().getNumNodeChanges(), diff.getPatch().getNumTextChanges() );
+						patch.getNumDeletes(), patch.getNumInserts(), patch.getNumUpdates(),
+						patch.getNumMoves(), patch.getNumNodeChanges(), patch.getNumTextChanges() );
 		
 		int numDeletes = 0, numInserts = 0, numUpdates = 0, numMoves = 0;
 		
 		// iterate over deletes
-		for( Element entry : diff.getPatch().getDeletes().getChildren() ) {
+		for( Element entry : patch.getDeletes().getChildren() ) {
 			if( addPatch(PatchType.DELETE, entry, partListA, partListB) )
 				numDeletes++;
 		}
 
 		// iterate over inserts
-		for( Element entry : diff.getPatch().getInserts().getChildren() ) {
+		for( Element entry : patch.getInserts().getChildren() ) {
 			if( addPatch(PatchType.INSERT, entry, partListA, partListB) )
 				numInserts++;
 		}
 		
 		// iterate over updates
-		for( Element entry : diff.getPatch().getUpdates().getChildren() ) {
+		for( Element entry : patch.getUpdates().getChildren() ) {
 			if( addPatch(PatchType.UPDATE, entry, partListA, partListB) )
 				numUpdates++;
 		}
 
 		// iterate over moves
-		for( Element entry : diff.getPatch().getMoves().getChildren() ) {
+		for( Element entry : patch.getMoves().getChildren() ) {
 			if( addPatch(PatchType.MOVE, entry, partListA, partListB) )
 				numMoves++;
 		}
@@ -379,7 +404,73 @@ public class DiffJob implements Runnable {
 		// inherit attribute stuff
 		patchNode.setProperty( Property.DiffNode.INHERIT, inherit );
 		
+		// add patch node to map
+		String bivesId = entry.getAttributeValue("id");
+		if( bivesId != null && bivesId.isEmpty() == false )
+			patchNodeMap.put( bivesId, patchNode );
+		
 		return patchNode;
+	}
+	
+	private void insertRDF(ChangeFactory annotations) {
+		
+		// get RDF annotations from Bives
+		Model rdfModel = annotations.getAnnotaions();
+		
+		ResIterator resIter = rdfModel.listSubjects();
+		while( resIter.hasNext() ) {
+			Resource resource = resIter.nextResource();
+			StmtIterator propIter = resource.listProperties();
+			while( propIter.hasNext() ) {
+				Statement statement = propIter.nextStatement();
+				org.apache.jena.rdf.model.Property prop = statement.getPredicate();
+				RDFNode object = statement.getObject();
+				
+				Resource objectResource = null;
+				if( object.isResource() == true && (objectResource = object.asResource()).getNameSpace().equals( ChangeFactory.COMODI_NS ) ) {
+					log.debug("S:{} P:{} O:{}", resource.toString(), prop.getLocalName(), objectResource.toString());
+					addComodiTerm( resource.getURI(), prop.getLocalName(), objectResource.getLocalName() );
+				}
+				
+			}
+		}
+		
+	}
+	
+	private Relationship addComodiTerm(String bivesId, String relationType, String object) {
+		
+		// cleanUp name
+		if( bivesId == null || bivesId.isEmpty() )
+			return null;
+		
+		try {
+			URI bivesIdUri = new URI(bivesId);
+			bivesId = bivesIdUri.getFragment();
+		} catch (URISyntaxException e) {
+			log.debug("Bives id was no uri. Abort.", e);
+			return null;
+		}
+		
+		// get patch node from diff
+		Node patchNode = patchNodeMap.get(bivesId); //DiffUtils.getPatchNodeByBivesId(diffNode, bivesId);
+		if( patchNode == null ) {
+			log.debug("no patch node found for bivesId {}", bivesId);
+			return null;
+		}
+		
+		// get ontology node from comodi
+		Node comodiNode = null;
+		UniqueEntity<Node> comodiNodeEntity = OntologyFactory.getFactory(COMODI_ONTOLOGY).getOrCreateWithOutcome(object, COMODI_ONTOLOGY);
+		if( comodiNodeEntity != null )
+			comodiNode = comodiNodeEntity.entity();
+		else {
+			log.warn("Comodi term {} not found in database", object);
+			return null;
+		}
+			
+		// wire relation
+		Relationship relation = patchNode.createRelationshipTo( comodiNode, DynamicRelationshipType.withName(relationType) );
+		return relation;
 	}
 	
 	// ----------------------------------------
