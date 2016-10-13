@@ -34,7 +34,7 @@
 		<dependency>
 			<groupId>de.unirostock.sems.masymos</groupId>
 			<artifactId>masymos-core</artifactId>
-			<version>0.9.0</version>
+			<version>0.9.1</version>
 		</dependency>
 
 		<dependency>

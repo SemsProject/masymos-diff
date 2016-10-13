@@ -16,7 +16,6 @@ import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.jdom2.Attribute;
 import org.jdom2.Element;
-import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -106,7 +105,7 @@ public class DiffJob implements Runnable {
 	@Override
 	public void run() {
 		
-		try (Transaction tx = manager.createNewTransaction()) {
+		try (Transaction tx = graphDB.beginTx()) {
 			
 			log.debug("Traversing document and model nodes");
 			
@@ -469,7 +468,7 @@ public class DiffJob implements Runnable {
 		}
 			
 		// wire relation
-		Relationship relation = patchNode.createRelationshipTo( comodiNode, DynamicRelationshipType.withName(relationType) );
+		Relationship relation = patchNode.createRelationshipTo( comodiNode, RelationshipType.withName(relationType) );
 		return relation;
 	}
 	

@@ -108,7 +108,7 @@ public abstract class DiffUtils {
 		
 		Map<String, Node> partList = new HashMap<String, Node>();
 		
-		try ( Transaction tx = manager.createNewTransaction() ) {
+		try ( Transaction tx = graphDB.beginTx() ) {
 			
 			// get ID of the model itself
 			insertIntoPartList(modelNode, partList);
@@ -179,7 +179,7 @@ public abstract class DiffUtils {
 			throw new IllegalArgumentException("The diff node has not a DIFF lable.");
 		
 		Node patchNode = null;
-		try ( Transaction tx = manager.createNewTransaction() ) {
+		try ( Transaction tx = graphDB.beginTx() ) {
 			// query parameter
 			Map<String, Object> parameter = new HashMap<String, Object>();
 			parameter.put( "diffId", diffNode.getId() );

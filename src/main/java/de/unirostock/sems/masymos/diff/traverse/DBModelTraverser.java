@@ -7,7 +7,7 @@ import org.neo4j.graphdb.Relationship;
 import de.unirostock.sems.masymos.configuration.NodeLabel;
 import de.unirostock.sems.masymos.configuration.Relation.DocumentRelTypes;
 
-public class DBModelTraverser extends de.unirostock.sems.masymos.database.traverse.DBModelTraverser {
+public class DBModelTraverser extends de.unirostock.sems.masymos.database.traverse.ModelTraverser {
 
 	/**
 	 * gets the model node from a document node
