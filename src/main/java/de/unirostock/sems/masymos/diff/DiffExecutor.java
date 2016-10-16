@@ -119,7 +119,7 @@ public class DiffExecutor {
 		parameter.put("limit", limit);
 		
 		// do filtering
-		String query = "Match (a:DOCUMENT)-[:HAS_SUCCESSOR]->(b:DOCUMENT) Where NOT (a)-->(:DIFF)-->(b) and (a)-->(:MODEL) and (b)-->(:MODEL)  Return a,b Limit {limit}";
+		String query = "Match (a:DOCUMENT)-[:HAS_SUCCESSOR]->(b:DOCUMENT) Where NOT (a)-->(:DIFF)-->(b) and (a)-->(:MODEL) and (b)-->(:MODEL) Return a,b Limit {limit}";
 		if( Property.ModelType.CELLML.equals(typeFilter) ) {
 			query = "Match (a:DOCUMENT)-[:HAS_SUCCESSOR]->(b:DOCUMENT) Where NOT (a)-->(:DIFF)-->(b) and (a)-->(:CELLML_MODEL) and (b)-->(:CELLML_MODEL) Return a,b Limit {limit}";
 			log.debug("restrict to CELLML models");
@@ -210,7 +210,7 @@ public class DiffExecutor {
 
 				log.debug("Gather nodes (Limited to 500)");
 				// first gather all diff related nodes
-				Result result = graphDB.execute("MATCH d WHERE d:DIFF OR d:DIFF_NODE RETURN d Limit 500");
+				Result result = graphDB.execute("MATCH (d) WHERE (d:DIFF) OR (d:DIFF_NODE) RETURN d Limit 500");
 				while( result.hasNext() ) {
 					Map<String, Object> row = result.next();
 					Node diff = (Node) row.get("d");
