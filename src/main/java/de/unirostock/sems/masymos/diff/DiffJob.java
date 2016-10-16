@@ -464,7 +464,7 @@ public class DiffJob implements Runnable {
 		
 		// get ontology node from comodi
 		Node comodiNode = null;
-		UniqueEntity<Node> comodiNodeEntity = OntologyFactory.getFactory(COMODI_ONTOLOGY).getOrCreateWithOutcome(object, COMODI_ONTOLOGY);
+		UniqueEntity<Node> comodiNodeEntity = OntologyFactory.getFactory(COMODI_ONTOLOGY).getOrCreateWithOutcome("id", object);
 		if( comodiNodeEntity != null )
 			comodiNode = comodiNodeEntity.entity();
 		else {
