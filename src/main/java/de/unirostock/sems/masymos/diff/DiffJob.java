@@ -428,7 +428,12 @@ public class DiffJob implements Runnable {
 				Resource objectResource = null;
 				if( object.isResource() == true && (objectResource = object.asResource()).getNameSpace().equals( ChangeFactory.COMODI_NS ) ) {
 					log.debug("S:{} P:{} O:{}", resource.toString(), prop.getLocalName(), objectResource.toString());
-					addComodiTerm( resource.getURI(), prop.getLocalName(), objectResource.getLocalName() );
+					try {
+						addComodiTerm( resource.getURI(), prop.getLocalName(), objectResource.getLocalName() );
+					}
+					catch(Exception e) {
+						log.error(MessageFormat.format("Error while annotation DiffNode {0} with COMODI term {1}", resource, objectResource) );
+					}
 				}
 				
 			}
