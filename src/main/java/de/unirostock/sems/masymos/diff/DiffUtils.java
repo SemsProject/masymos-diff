@@ -13,6 +13,8 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import de.unirostock.sems.masymos.database.Manager;
 import de.unirostock.sems.masymos.diff.configuration.NodeLabel;
@@ -23,6 +25,7 @@ import de.unirostock.sems.masymos.diff.traverse.DBModelTraverser;
 
 public abstract class DiffUtils {
 	
+	protected static Logger log = LoggerFactory.getLogger(DiffUtils.class);
 	protected static Manager manager = Manager.instance();
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
 	
@@ -167,7 +170,7 @@ public abstract class DiffUtils {
 			if( partList.containsKey(id) == false )
 				partList.put( id, node );
 			else
-				System.err.println("Prevented id overwrite in part list for " + id);
+				log.error("Prevented id overwrite in part list for {}", id);
 		}
 		
 		return id;
