@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.cypher.CypherException;
@@ -21,6 +19,7 @@ import de.unirostock.sems.masymos.database.Manager;
 import de.unirostock.sems.masymos.diff.configuration.NodeLabel;
 import de.unirostock.sems.masymos.diff.configuration.Property;
 import de.unirostock.sems.masymos.diff.configuration.Relation;
+import de.unirostock.sems.masymos.diff.thread.PriorityExecutor;
 
 public class DiffExecutor {
 	
@@ -47,7 +46,7 @@ public class DiffExecutor {
 	
 	protected GraphDatabaseService graphDB = null;
 	protected Manager manager = null;
-	protected ExecutorService executor = null;
+	protected PriorityExecutor executor = null;
 	
 	protected static int numThreads = 5;
 	protected static int numQueryLimit = 100;
@@ -68,10 +67,15 @@ public class DiffExecutor {
 		// create executor
 		if( executor == null || (executor.isShutdown() && executor.isTerminated()) ) {
 			log.info("Created fixed ThreadPoolExecutor with {} threads", numThreads);
-			executor = Executors.newFixedThreadPool(numThreads);
+			executor = new PriorityExecutor(1, numThreads, 20, TimeUnit.SECONDS);
 		}
 		
 	}
+	
+	public PriorityExecutor getExecutor() {
+		return executor;
+	}
+	
 	
 	public Set<DiffJob> getDocumentsWithoutDiff(int limit) {
 		return getDocumentsWithoutDiff(limit, null);

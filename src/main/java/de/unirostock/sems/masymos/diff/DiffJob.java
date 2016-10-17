@@ -46,6 +46,7 @@ import de.unirostock.sems.masymos.diff.exception.DiffException;
 import de.unirostock.sems.masymos.diff.exception.DiffProcessingException;
 import de.unirostock.sems.masymos.diff.exception.ModelAccessException;
 import de.unirostock.sems.masymos.diff.exception.ModelTypeException;
+import de.unirostock.sems.masymos.diff.thread.Priority;
 import de.unirostock.sems.masymos.diff.traverse.DBModelTraverser;
 import de.unirostock.sems.masymos.util.OntologyFactory;
 import de.unirostock.sems.xmlutils.ds.DocumentNode;
@@ -57,7 +58,7 @@ import de.unirostock.sems.xmlutils.ds.TreeNode;
  * @author martin
  *
  */
-public class DiffJob implements Runnable {
+public class DiffJob implements Runnable, Priority {
 
 	/**
 	 * version of the generator routine.
@@ -65,6 +66,7 @@ public class DiffJob implements Runnable {
 	 */
 	public static final int GENERATOR_VERSION = 2;
 	public static final String COMODI_ONTOLOGY = "ComodiOntology";
+	public static final int PRIORITY = 1;
 	
 	private static Logger log = LoggerFactory.getLogger(DiffJob.class);
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
@@ -97,6 +99,14 @@ public class DiffJob implements Runnable {
 		this.documentNodeA = nodeA;
 		this.documentNodeB = nodeB;
 		
+	}
+	
+	/**
+	 * returns the default priority for all DiffJobs (1)
+	 */
+	@Override
+	public int getPriority() {
+		return PRIORITY;
 	}
 
 	/**
