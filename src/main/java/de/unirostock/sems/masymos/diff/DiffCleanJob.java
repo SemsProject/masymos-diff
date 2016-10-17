@@ -24,8 +24,8 @@ public class DiffCleanJob implements Callable<Long>, Priority {
 	public static final int PRIORITY = 20;
 	private static Logger log = LoggerFactory.getLogger(DiffExecutor.class);
 
-	protected GraphDatabaseService graphDB = null;
-	protected Manager manager = null;
+	protected static Manager manager = Manager.instance();
+	protected static GraphDatabaseService graphDB = manager.getDatabase();
 	private final RemovalMethod removalMethod;
 
 	public static enum RemovalMethod {
