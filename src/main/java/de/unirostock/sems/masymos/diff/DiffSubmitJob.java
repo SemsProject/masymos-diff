@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
@@ -16,7 +18,7 @@ import de.unirostock.sems.masymos.database.Manager;
 import de.unirostock.sems.masymos.diff.configuration.Property;
 import de.unirostock.sems.masymos.diff.thread.Priority;
 
-public class DiffSubmitJob implements Runnable, Priority {
+public class DiffSubmitJob implements Callable<Long>, Priority {
 
 	public final static int PRIORITY = 10;
 	
@@ -24,27 +26,68 @@ public class DiffSubmitJob implements Runnable, Priority {
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
 	protected static Manager manager = Manager.instance();
 	
+	protected long doneJobsLimit = 100;
+	protected long queryLimit = 500;
+	protected final ExecutorService executor;
+	
+	public DiffSubmitJob(ExecutorService executor, long doneJobsLimit, long queryLimit) {
+		this.doneJobsLimit = doneJobsLimit;
+		this.queryLimit = queryLimit;
+		this.executor = executor;
+	}
+	
 	@Override
 	public int getPriority() {
 		return PRIORITY;
 	}
 
 	@Override
-	public void run() {
-		// TODO Auto-generated method stub
+	public Long call() throws Exception {
+	
+		// let's submit some jobs!
+		// keeps all already processed jobs
+		Set<Integer> doneJobs = new HashSet<Integer>();
 		
+		while(true) {
+			// get a job...
+			// (... and a life)
+			Set<DiffJob> jobs = getDocumentsWithoutDiff(queryLimit, doneJobs, null);
+			
+			// no jobs -> exit loop
+			if( jobs.size() == 0 ) {
+				log.info("No jobs left, stop submitting");
+				break;
+			}
+			// max jobs for a run reached -> exit loop
+			else if( doneJobs.size() >= doneJobsLimit && doneJobsLimit > 0 ) {
+				log.info("Reached job submission limit, stopping for now");
+				break;
+			}
+			
+			for( DiffJob currentJob : jobs ) {
+				// submit to process
+				executor.submit(currentJob);
+				// add to done jobs
+				doneJobs.add( currentJob.hashCode() );
+			}
+			
+			log.debug("Done {} jobs in general, {} this turn.", doneJobs.size(), jobs.size());
+		}
+		// finished submitting jobs
+		log.info("Finished Submitting {} jobs.", doneJobs.size());
+		return (long) doneJobs.size();
 	}
 	
 	
-	protected static Set<DiffJob> getDocumentsWithoutDiff(int limit) {
+	protected Set<DiffJob> getDocumentsWithoutDiff(long limit) {
 		return getDocumentsWithoutDiff(limit, null);
 	}
 	
-	protected static Set<DiffJob> getDocumentsWithoutDiff(int limit, Set<Integer> doneJobs, String typeFilter) {
+	protected Set<DiffJob> getDocumentsWithoutDiff(long limit, Set<Integer> doneJobs, String typeFilter) {
 		Set<DiffJob> resultJobList = new HashSet<DiffJob>();
 		
-		int discardCount = 0;
-		int length = 0;
+		long discardCount = 0;
+		long length = 0;
 		Set<DiffJob> jobs = null;
 		do {
 			// get optimal query length
@@ -72,7 +115,7 @@ public class DiffSubmitJob implements Runnable, Priority {
 		return resultJobList;
 	}
 	
-	protected static Set<DiffJob> getDocumentsWithoutDiff(int limit, String typeFilter) {
+	protected Set<DiffJob> getDocumentsWithoutDiff(long limit, String typeFilter) {
 		Set<DiffJob> jobs = new HashSet<DiffJob>();
 		
 		log.debug("Get document nodes without diff, limited to {}", limit);
@@ -109,4 +152,6 @@ public class DiffSubmitJob implements Runnable, Priority {
 		
 		return jobs;
 	}
+
+	
 }
