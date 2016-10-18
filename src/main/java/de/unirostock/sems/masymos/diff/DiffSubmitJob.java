@@ -24,7 +24,7 @@ public class DiffSubmitJob implements Callable<Long>, Priority {
 	
 	private static Logger log = LoggerFactory.getLogger(DiffSubmitJob.class);
 	protected static Manager manager = Manager.instance();
-	protected static GraphDatabaseService graphDB = manager.getDatabase();
+	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
 	
 	
 	protected long doneJobsLimit = 100;
