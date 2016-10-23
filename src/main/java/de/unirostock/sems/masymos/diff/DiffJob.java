@@ -355,24 +355,24 @@ public class DiffJob implements Runnable, Priority {
 		switch (type) {
 			case DELETE:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_DELETE;
-				relationTypeA = Relation.DiffRelTypes.DIFF_DELETED;
+				relationTypeA = Relation.DiffRelTypes.IS_SOURCE;
 				break;
 				
 			case INSERT:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_INSERT;
-				relationTypeB = Relation.DiffRelTypes.DIFF_INSERTED;
+				relationTypeB = Relation.DiffRelTypes.IS_DESTINATION;
 				break;
 				
 			case MOVE:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_MOVE;
-				relationTypeA = Relation.DiffRelTypes.DIFF_MOVE_OLD;
-				relationTypeB = Relation.DiffRelTypes.DIFF_MOVE_NEW;
+				relationTypeA = Relation.DiffRelTypes.IS_SOURCE;
+				relationTypeB = Relation.DiffRelTypes.IS_DESTINATION;
 				break;
 				
 			case UPDATE:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_UPDATE;
-				relationTypeA = Relation.DiffRelTypes.DIFF_UPDATE_OLD;
-				relationTypeB = Relation.DiffRelTypes.DIFF_UPDATE_NEW;
+				relationTypeA = Relation.DiffRelTypes.IS_SOURCE;
+				relationTypeB = Relation.DiffRelTypes.IS_DESTINATION;
 				break;
 				
 			default:

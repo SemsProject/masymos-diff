@@ -12,12 +12,8 @@ public class Relation extends de.unirostock.sems.masymos.configuration.Relation 
 		HAS_DIFF,
 		HAS_DIFF_ENTRY,
 		
-		DIFF_DELETED,
-		DIFF_INSERTED,
-		DIFF_UPDATE_OLD,
-		DIFF_UPDATE_NEW,
-		DIFF_MOVE_OLD,
-		DIFF_MOVE_NEW,
+		IS_SOURCE,
+		IS_DESTINATION,
 		
 		DIFF_TRIGGERED_BY
 	}
