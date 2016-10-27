@@ -72,14 +72,14 @@ public class DiffJob implements Runnable, Priority {
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
 	protected static Manager manager = Manager.instance();
 
-	protected Node documentNodeA = null;
-	protected Node documentNodeB = null;
+	protected Node documentNodeSource = null;
+	protected Node documentNodeDestination = null;
 
-	protected Node modelNodeA = null;
-	protected Node modelNodeB = null;
+	protected Node modelNodeSource = null;
+	protected Node modelNodeDestination = null;
 
-	protected ModelDocument modelA = null;
-	protected ModelDocument modelB = null;
+	protected ModelDocument modelSource = null;
+	protected ModelDocument modelDestination = null;
 
 	protected Node diffNode = null;
 	protected Diff diff = null;
@@ -96,8 +96,8 @@ public class DiffJob implements Runnable, Priority {
 		if( nodeA == null || nodeB == null )
 			throw new IllegalArgumentException("both nodes are not allowed to be null.");
 		
-		this.documentNodeA = nodeA;
-		this.documentNodeB = nodeB;
+		this.documentNodeSource = nodeA;
+		this.documentNodeDestination = nodeB;
 		
 	}
 	
@@ -119,24 +119,24 @@ public class DiffJob implements Runnable, Priority {
 			
 			log.debug("Traversing document and model nodes");
 			
-			log.trace( "Document A labels: {}", documentNodeA.getLabels() );
-			log.trace( "Document B labels: {}", documentNodeB.getLabels() );
+			log.trace( "Document A labels: {}", documentNodeSource.getLabels() );
+			log.trace( "Document B labels: {}", documentNodeDestination.getLabels() );
 			
 			// traverse to Document nodes
 //			documentNodeA = DBModelTraverser.getDocumentFromModel(documentNodeA);
 //			documentNodeB = DBModelTraverser.getDocumentFromModel(documentNodeB);
 			
-			if( documentNodeA == null || documentNodeB == null )
+			if( documentNodeSource == null || documentNodeDestination == null )
 				throw new IllegalArgumentException("One or both document nodes are null");
 			
 			// traverse to Model nodes (one below document)
-			modelNodeA = DBModelTraverser.getModelFromDocument(documentNodeA);
-			modelNodeB = DBModelTraverser.getModelFromDocument(documentNodeB);
+			modelNodeSource = DBModelTraverser.getModelFromDocument(documentNodeSource);
+			modelNodeDestination = DBModelTraverser.getModelFromDocument(documentNodeDestination);
 			
 			if( log.isInfoEnabled() )
 				log.info( "comparing model {} and model {}", 
-						documentNodeA.getProperty(Property.General.XMLDOC, null),
-						documentNodeB.getProperty(Property.General.XMLDOC, null) );
+						documentNodeSource.getProperty(Property.General.XMLDOC, null),
+						documentNodeDestination.getProperty(Property.General.XMLDOC, null) );
 			
 			log.debug("Creating diff node");
 			
@@ -194,27 +194,27 @@ public class DiffJob implements Runnable, Priority {
 	private void linkDiffNode() {
 
 		// create relations
-		Relationship relA = documentNodeA.createRelationshipTo(diffNode, Relation.DiffRelTypes.HAS_DIFF);
-		Relationship relB = diffNode.createRelationshipTo(documentNodeB, Relation.DiffRelTypes.HAS_DIFF);
+		Relationship relA = documentNodeSource.createRelationshipTo(diffNode, Relation.DiffRelTypes.HAS_DIFF);
+		Relationship relB = documentNodeDestination.createRelationshipTo(diffNode, Relation.DiffRelTypes.HAS_DIFF);
 
 		// set properties for relation
-		relA.setProperty(Property.DiffNode.DIFF_PART, "A");
-		relB.setProperty(Property.DiffNode.DIFF_PART, "B");
+		relA.setProperty(Property.DiffNode.DIFF_PART, "source");
+		relB.setProperty(Property.DiffNode.DIFF_PART, "destination");
 
 	}
 
 	private Diff generateDiff() throws ModelTypeException, ModelAccessException, DiffProcessingException {
 
 		Diff diff = null;
-		String typeA = DiffUtils.getModelType(modelNodeA);
-		String typeB = DiffUtils.getModelType(modelNodeB);
+		String typeA = DiffUtils.getModelType(modelNodeSource);
+		String typeB = DiffUtils.getModelType(modelNodeDestination);
 
 		if( typeA == null || typeB == null || typeA.equals(typeB) == false )
 			throw new ModelTypeException( MessageFormat.format("Cannot compare a model of type {0}, with a model of type {1}", typeA, typeB) );
 
 		// get model URLs
-		URL modelUrlA = DiffUtils.getUrlFromDocument( documentNodeA );
-		URL modelUrlB = DiffUtils.getUrlFromDocument( documentNodeB );
+		URL modelUrlA = DiffUtils.getUrlFromDocument( documentNodeSource );
+		URL modelUrlB = DiffUtils.getUrlFromDocument( documentNodeDestination );
 		
 		// null check
 		if( modelUrlA == null || modelUrlB == null )
@@ -222,18 +222,18 @@ public class DiffJob implements Runnable, Priority {
 
 		if( typeA.equals(Property.ModelType.CELLML) ) {
 			// parse models
-			modelA = parseCellMlDocument(modelUrlA);
-			modelB = parseCellMlDocument(modelUrlB);
+			modelSource = parseCellMlDocument(modelUrlA);
+			modelDestination = parseCellMlDocument(modelUrlB);
 
 			// compare CellML models
-			diff = new CellMLDiff( (CellMLDocument) modelA, (CellMLDocument) modelB );
+			diff = new CellMLDiff( (CellMLDocument) modelSource, (CellMLDocument) modelDestination );
 		} else if( typeA.equals(Property.ModelType.SBML) ) {
 			// parse models
-			modelA = parseSbmlDocument(modelUrlA);
-			modelB = parseSbmlDocument(modelUrlB);
+			modelSource = parseSbmlDocument(modelUrlA);
+			modelDestination = parseSbmlDocument(modelUrlB);
 
 			// compare sbml models
-			diff = new SBMLDiff((SBMLDocument) modelA, (SBMLDocument) modelB );
+			diff = new SBMLDiff((SBMLDocument) modelSource, (SBMLDocument) modelDestination );
 		}
 
 		if( diff == null )
@@ -254,8 +254,8 @@ public class DiffJob implements Runnable, Priority {
 
 		// get all parts with their xml-id from the models (to speed things up)
 		log.debug("building part list");
-		Map<String, Node> partListA = DiffUtils.traverseModelParts(modelNodeA);
-		Map<String, Node> partListB = DiffUtils.traverseModelParts(modelNodeB);
+		Map<String, Node> partListA = DiffUtils.traverseModelParts(modelNodeSource);
+		Map<String, Node> partListB = DiffUtils.traverseModelParts(modelNodeDestination);
 		
 		log.info("part list size A:{}, B:{}", partListA.size(), partListB.size());
 		
@@ -306,73 +306,73 @@ public class DiffJob implements Runnable, Priority {
 
 	}
 	
-	protected boolean addPatch( PatchType type, Element entry, Map<String, Node> partListA, Map<String, Node> partListB ) {
+	protected boolean addPatch( PatchType type, Element entry, Map<String, Node> partListSource, Map<String, Node> partListDestination ) {
 		
-		DocumentNode oldXmlNode = null;
-		DocumentNode newXmlNode = null;
+		DocumentNode sourceXmlNode = null;
+		DocumentNode destinationXmlNode = null;
 		
-		XmlId oldId = null;
-		XmlId newId = null;
+		XmlId sourceId = null;
+		XmlId destinationId = null;
 		
-		String oldXPath = entry.getAttributeValue("oldPath");
-		if( oldXPath != null ) {
-			oldXmlNode = getDocumentNodeFromXPath(modelA, oldXPath);
-			oldId = getIdFromXmlNode( oldXmlNode, partListA );
+		String sourceXPath = entry.getAttributeValue("oldPath");
+		if( sourceXPath != null ) {
+			sourceXmlNode = getDocumentNodeFromXPath(modelSource, sourceXPath);
+			sourceId = getIdFromXmlNode( sourceXmlNode, partListSource );
 		}
 		
-		String newXPath = entry.getAttributeValue("newPath");
-		if( newXPath != null ) {
-			newXmlNode = getDocumentNodeFromXPath(modelB, newXPath);
-			newId = getIdFromXmlNode( newXmlNode, partListB );
+		String destinationXPath = entry.getAttributeValue("newPath");
+		if( destinationXPath != null ) {
+			destinationXmlNode = getDocumentNodeFromXPath(modelDestination, destinationXPath);
+			destinationId = getIdFromXmlNode( destinationXmlNode, partListDestination );
 		}
 		
-		if(		(oldXPath == null || partListA.containsKey(oldId.getId()) ) &&
-				(newXPath == null || partListB.containsKey(newId.getId()) ) &&
-				!(oldXPath == null && newXPath == null) ) {
+		if(		(sourceXPath == null || partListSource.containsKey(sourceId.getId()) ) &&
+				(destinationXPath == null || partListDestination.containsKey(destinationId.getId()) ) &&
+				!(sourceXPath == null && destinationXPath == null) ) {
 			
 			Node patchNode = addPatchNode( type,
-					oldXPath != null ? partListA.get(oldId.getId()) : null,
-					newXPath != null ? partListB.get(newId.getId()) : null,
-					oldId, newId, entry
+					sourceXPath != null ? partListSource.get(sourceId.getId()) : null,
+					destinationXPath != null ? partListDestination.get(destinationId.getId()) : null,
+					sourceId, destinationId, entry
 				);
 			return patchNode != null;
 		}
 		else {
-			log.warn("Didn't found corresponding {} graph node with id A:{} and B:{} for A:{} and B:{}", type, newId, oldId, oldXPath, newXPath);
+			log.warn("Didn't found corresponding {} graph node with id A:{} and B:{} for A:{} and B:{}", type, destinationId, sourceId, sourceXPath, destinationXPath);
 			return false;
 		}
 		
 	}
 
-	protected Node addPatchNode( PatchType type, Node oldNode, Node newNode, XmlId oldId, XmlId newId, Element entry ) {
+	protected Node addPatchNode( PatchType type, Node sourceNode, Node destinationNode, XmlId sourceId, XmlId destinationId, Element entry ) {
 		
 		// label definition
 		Label nodeLabel = null;
-		RelationshipType relationTypeA = null;
-		RelationshipType relationTypeB = null;
+		RelationshipType sourceRelationType = null;
+		RelationshipType destinationRelationType = null;
 		
 		// distinguish node and label names
 		switch (type) {
 			case DELETE:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_DELETE;
-				relationTypeA = Relation.DiffRelTypes.IS_SOURCE;
+				sourceRelationType = Relation.DiffRelTypes.IS_SOURCE;
 				break;
 				
 			case INSERT:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_INSERT;
-				relationTypeB = Relation.DiffRelTypes.IS_DESTINATION;
+				destinationRelationType = Relation.DiffRelTypes.IS_DESTINATION;
 				break;
 				
 			case MOVE:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_MOVE;
-				relationTypeA = Relation.DiffRelTypes.IS_SOURCE;
-				relationTypeB = Relation.DiffRelTypes.IS_DESTINATION;
+				sourceRelationType = Relation.DiffRelTypes.IS_SOURCE;
+				destinationRelationType = Relation.DiffRelTypes.IS_DESTINATION;
 				break;
 				
 			case UPDATE:
 				nodeLabel = NodeLabel.DiffTypes.DIFF_UPDATE;
-				relationTypeA = Relation.DiffRelTypes.IS_SOURCE;
-				relationTypeB = Relation.DiffRelTypes.IS_DESTINATION;
+				sourceRelationType = Relation.DiffRelTypes.IS_SOURCE;
+				destinationRelationType = Relation.DiffRelTypes.IS_DESTINATION;
 				break;
 				
 			default:
@@ -394,20 +394,20 @@ public class DiffJob implements Runnable, Priority {
 		diffNode.createRelationshipTo( patchNode, Relation.DiffRelTypes.HAS_DIFF_ENTRY );
 		boolean inherit = false;
 		
-		if( relationTypeA != null && oldNode != null ) {
-			Relationship relationA = patchNode.createRelationshipTo( oldNode, relationTypeA );
+		if( sourceRelationType != null && sourceNode != null ) {
+			Relationship relationA = patchNode.createRelationshipTo( sourceNode, sourceRelationType );
 			
-			relationA.setProperty( Property.DiffNode.INHERIT, oldId.isInherit() );
-			relationA.setProperty( Property.DiffNode.INHERIT_LEVEL, oldId.getInheritLevel() );
-			inherit = oldId.isInherit() ? true : inherit;
+			relationA.setProperty( Property.DiffNode.INHERIT, sourceId.isInherit() );
+			relationA.setProperty( Property.DiffNode.INHERIT_LEVEL, sourceId.getInheritLevel() );
+			inherit = sourceId.isInherit() ? true : inherit;
 		}
 		
-		if( relationTypeB != null && newNode != null ) {
-			Relationship relationB = patchNode.createRelationshipTo( newNode, relationTypeB );
+		if( destinationRelationType != null && destinationNode != null ) {
+			Relationship relationB = patchNode.createRelationshipTo( destinationNode, destinationRelationType );
 			
-			relationB.setProperty( Property.DiffNode.INHERIT, newId.isInherit() );
-			relationB.setProperty( Property.DiffNode.INHERIT_LEVEL, newId.getInheritLevel() );
-			inherit = newId.isInherit() ? true : inherit;
+			relationB.setProperty( Property.DiffNode.INHERIT, destinationId.isInherit() );
+			relationB.setProperty( Property.DiffNode.INHERIT_LEVEL, destinationId.getInheritLevel() );
+			inherit = destinationId.isInherit() ? true : inherit;
 		}
 		
 		// inherit attribute stuff
@@ -593,8 +593,8 @@ public class DiffJob implements Runnable, Priority {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((documentNodeA == null) ? 0 : documentNodeA.hashCode());
-		result = prime * result + ((documentNodeB == null) ? 0 : documentNodeB.hashCode());
+		result = prime * result + ((documentNodeSource == null) ? 0 : documentNodeSource.hashCode());
+		result = prime * result + ((documentNodeDestination == null) ? 0 : documentNodeDestination.hashCode());
 		return result;
 	}
 
@@ -607,15 +607,15 @@ public class DiffJob implements Runnable, Priority {
 		if (getClass() != obj.getClass())
 			return false;
 		DiffJob other = (DiffJob) obj;
-		if (documentNodeA == null) {
-			if (other.documentNodeA != null)
+		if (documentNodeSource == null) {
+			if (other.documentNodeSource != null)
 				return false;
-		} else if (!documentNodeA.equals(other.documentNodeA))
+		} else if (!documentNodeSource.equals(other.documentNodeSource))
 			return false;
-		if (documentNodeB == null) {
-			if (other.documentNodeB != null)
+		if (documentNodeDestination == null) {
+			if (other.documentNodeDestination != null)
 				return false;
-		} else if (!documentNodeB.equals(other.documentNodeB))
+		} else if (!documentNodeDestination.equals(other.documentNodeDestination))
 			return false;
 		return true;
 	}
