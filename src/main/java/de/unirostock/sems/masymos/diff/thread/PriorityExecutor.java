@@ -72,7 +72,7 @@ public class PriorityExecutor extends ThreadPoolExecutor {
 			return new PriorityTask<T>(0, runnable, value);
 	}
 
-	private static final class PriorityTask<T> extends FutureTask<T> implements Comparable<PriorityTask<T>> {
+	private static final class PriorityTask<T> extends FutureTask<T> implements Comparable<PriorityTask<T>>, Priority {
 		private final int priority;
 
 		public PriorityTask(final int priority, final Callable<T> tCallable) {
@@ -86,12 +86,19 @@ public class PriorityExecutor extends ThreadPoolExecutor {
 
 			this.priority = priority;
 		}
+		
+		@Override
+		public int getPriority() {
+			return this.priority;
+		}
 
 		@Override
 		public int compareTo(final PriorityTask<T> o) {
 			final long diff = o.priority - priority;
 			return diff == 0 ? 0 : diff < 0 ? -1 : 1;
 		}
+
+		
 	}
 
 }

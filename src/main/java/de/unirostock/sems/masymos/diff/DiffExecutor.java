@@ -57,7 +57,12 @@ public class DiffExecutor {
 		// create executor
 		if( executor == null || (executor.isShutdown() && executor.isTerminated()) ) {
 			log.info("Created fixed ThreadPoolExecutor with {} threads", numThreads);
-			executor = new PriorityExecutor(1, numThreads, 20, TimeUnit.SECONDS);
+			executor = new PriorityExecutor(numThreads, numThreads, 20, TimeUnit.SECONDS);
+			// allow threads to stop, after long time of idling, saving some resources
+			// this is necessary due to some stupid design "flaw" in the way ThreadPoolExecutor
+			// deal with BlockingQueues. This is by far not the prettiest solution, but it is the
+			// shortest working one. So here we go...
+			executor.allowCoreThreadTimeOut(true);
 		}
 
 	}
