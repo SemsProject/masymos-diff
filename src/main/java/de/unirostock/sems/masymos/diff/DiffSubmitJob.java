@@ -52,7 +52,7 @@ public class DiffSubmitJob implements Callable<Long>, Priority {
 		while(true) {
 			// get a job...
 			// (... and a life)
-			Set<DiffJob> jobs = getDocumentsWithoutDiff(queryLimit, doneJobs, null);
+			Set<DiffGenerationTask> jobs = getDocumentsWithoutDiff(queryLimit, doneJobs, null);
 			
 			// no jobs -> exit loop
 			if( jobs.size() == 0 ) {
@@ -65,7 +65,7 @@ public class DiffSubmitJob implements Callable<Long>, Priority {
 				break;
 			}
 			
-			for( DiffJob currentJob : jobs ) {
+			for( DiffGenerationTask currentJob : jobs ) {
 				// submit to process
 				executor.submit(currentJob);
 				// add to done jobs
@@ -80,16 +80,16 @@ public class DiffSubmitJob implements Callable<Long>, Priority {
 	}
 	
 	
-	protected Set<DiffJob> getDocumentsWithoutDiff(long limit) {
+	protected Set<DiffGenerationTask> getDocumentsWithoutDiff(long limit) {
 		return getDocumentsWithoutDiff(limit, null);
 	}
 	
-	protected Set<DiffJob> getDocumentsWithoutDiff(long limit, Set<Integer> doneJobs, String typeFilter) {
-		Set<DiffJob> resultJobList = new HashSet<DiffJob>();
+	protected Set<DiffGenerationTask> getDocumentsWithoutDiff(long limit, Set<Integer> doneJobs, String typeFilter) {
+		Set<DiffGenerationTask> resultJobList = new HashSet<DiffGenerationTask>();
 		
 		long discardCount = 0;
 		long length = 0;
-		Set<DiffJob> jobs = null;
+		Set<DiffGenerationTask> jobs = null;
 		do {
 			// get optimal query length
 			length = limit - resultJobList.size();
@@ -100,7 +100,7 @@ public class DiffSubmitJob implements Callable<Long>, Priority {
 			// get the jobs
 			jobs = getDocumentsWithoutDiff(length, typeFilter);
 			// clean already done jobs
-			for( DiffJob currentJob : jobs ) {
+			for( DiffGenerationTask currentJob : jobs ) {
 				if( doneJobs.contains(currentJob.hashCode()) == false )
 					resultJobList.add(currentJob);
 				else
@@ -116,8 +116,8 @@ public class DiffSubmitJob implements Callable<Long>, Priority {
 		return resultJobList;
 	}
 	
-	protected Set<DiffJob> getDocumentsWithoutDiff(long limit, String typeFilter) {
-		Set<DiffJob> jobs = new HashSet<DiffJob>();
+	protected Set<DiffGenerationTask> getDocumentsWithoutDiff(long limit, String typeFilter) {
+		Set<DiffGenerationTask> jobs = new HashSet<DiffGenerationTask>();
 		
 		log.debug("Get document nodes without diff, limited to {}", limit);
 		
@@ -142,7 +142,7 @@ public class DiffSubmitJob implements Callable<Long>, Priority {
 			Result result = graphDB.execute(query, parameter);
 			while( result.hasNext() ) {
 				Map<String, Object> row = result.next();
-				jobs.add( new DiffJob( (Node) row.get("a"), (Node) row.get("b")) );
+				jobs.add( new DiffGenerationTask( (Node) row.get("a"), (Node) row.get("b")) );
 			}
 			
 			// close stuff

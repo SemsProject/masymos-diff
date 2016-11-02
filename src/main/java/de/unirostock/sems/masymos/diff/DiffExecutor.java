@@ -120,13 +120,13 @@ public class DiffExecutor {
 	 * @throws InterruptedException
 	 * @throws ExecutionException
 	 */
-	public void cleanDiffs(DiffCleanJob.RemovalMethod removalMethod, boolean wait) throws InterruptedException, ExecutionException {
+	public void cleanDiffs(DiffCleanTask.RemovalMethod removalMethod, boolean wait) throws InterruptedException, ExecutionException {
 		
 		// just to make sure, the executor is loaded
 		buildThreadPoolExecutor();
 		
 		// create the clean job and submit it
-		DiffCleanJob cleanJob = new DiffCleanJob(removalMethod);
+		DiffCleanTask cleanJob = new DiffCleanTask(removalMethod);
 		Future<Long> cleanJobResult = this.executor.submit(cleanJob);
 		
 		if( wait == true ) {

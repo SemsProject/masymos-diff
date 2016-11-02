@@ -19,7 +19,7 @@ import de.unirostock.sems.masymos.diff.configuration.NodeLabel;
 import de.unirostock.sems.masymos.diff.configuration.Relation;
 import de.unirostock.sems.masymos.diff.thread.Priority;
 
-public class DiffCleanJob implements Callable<Long>, Priority {
+public class DiffCleanTask implements Callable<Long>, Priority {
 
 	public static final int PRIORITY = 20;
 	private static Logger log = LoggerFactory.getLogger(DiffExecutor.class);
@@ -33,7 +33,7 @@ public class DiffCleanJob implements Callable<Long>, Priority {
 		TRAVERSAL;
 	}
 
-	public DiffCleanJob(RemovalMethod removalMethod) {
+	public DiffCleanTask(RemovalMethod removalMethod) {
 		this.removalMethod = removalMethod;
 	}
 

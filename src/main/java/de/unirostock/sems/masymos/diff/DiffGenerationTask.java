@@ -58,7 +58,7 @@ import de.unirostock.sems.xmlutils.ds.TreeNode;
  * @author martin
  *
  */
-public class DiffJob implements Runnable, Priority {
+public class DiffGenerationTask implements Runnable, Priority {
 
 	/**
 	 * version of the generator routine.
@@ -68,7 +68,7 @@ public class DiffJob implements Runnable, Priority {
 	public static final String COMODI_ONTOLOGY = "ComodiOntology";
 	public static final int PRIORITY = 1;
 	
-	private static Logger log = LoggerFactory.getLogger(DiffJob.class);
+	private static Logger log = LoggerFactory.getLogger(DiffGenerationTask.class);
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
 	protected static Manager manager = Manager.instance();
 
@@ -91,7 +91,7 @@ public class DiffJob implements Runnable, Priority {
 	 * @param nodeA
 	 * @param nodeB
 	 */
-	public DiffJob(Node nodeA, Node nodeB) {
+	public DiffGenerationTask(Node nodeA, Node nodeB) {
 
 		if( nodeA == null || nodeB == null )
 			throw new IllegalArgumentException("both nodes are not allowed to be null.");
@@ -606,7 +606,7 @@ public class DiffJob implements Runnable, Priority {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		DiffJob other = (DiffJob) obj;
+		DiffGenerationTask other = (DiffGenerationTask) obj;
 		if (documentNodeSource == null) {
 			if (other.documentNodeSource != null)
 				return false;
