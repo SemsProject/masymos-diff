@@ -18,11 +18,11 @@ import de.unirostock.sems.masymos.database.Manager;
 import de.unirostock.sems.masymos.diff.configuration.Property;
 import de.unirostock.sems.masymos.diff.thread.Priority;
 
-public class DiffSubmitJob implements Callable<Long>, Priority {
+public class DiffGatherTask implements Callable<Long>, Priority {
 
 	public final static int PRIORITY = 10;
 	
-	private static Logger log = LoggerFactory.getLogger(DiffSubmitJob.class);
+	private static Logger log = LoggerFactory.getLogger(DiffGatherTask.class);
 	protected static Manager manager = Manager.instance();
 	protected static GraphDatabaseService graphDB = Manager.instance().getDatabase();
 	
@@ -31,7 +31,7 @@ public class DiffSubmitJob implements Callable<Long>, Priority {
 	protected long queryLimit = 500;
 	protected final ExecutorService executor;
 	
-	public DiffSubmitJob(ExecutorService executor, long doneJobsLimit, long queryLimit) {
+	public DiffGatherTask(ExecutorService executor, long doneJobsLimit, long queryLimit) {
 		this.doneJobsLimit = doneJobsLimit;
 		this.queryLimit = queryLimit;
 		this.executor = executor;

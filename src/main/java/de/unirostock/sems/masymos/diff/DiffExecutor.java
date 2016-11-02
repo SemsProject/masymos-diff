@@ -97,7 +97,7 @@ public class DiffExecutor {
 		buildThreadPoolExecutor();
 
 		// create Job and submit it
-		DiffSubmitJob submitJob = new DiffSubmitJob(this.executor, doneJobsLimit, numQueryLimit);
+		DiffGatherTask submitJob = new DiffGatherTask(this.executor, doneJobsLimit, numQueryLimit);
 		Future<Long> submitJobResult = this.executor.submit(submitJob);
 
 		if( wait == true ) {
