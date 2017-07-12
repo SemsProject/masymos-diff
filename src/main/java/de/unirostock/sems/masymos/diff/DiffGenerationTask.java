@@ -392,6 +392,7 @@ public class DiffGenerationTask implements Runnable, Priority {
 		
 		// wire the node
 		diffNode.createRelationshipTo( patchNode, Relation.DiffRelTypes.HAS_DIFF_ENTRY );
+		patchNode.createRelationshipTo( diffNode, Relation.DatabaseRelTypes.BELONGS_TO );
 		boolean inherit = false;
 		
 		if( sourceRelationType != null && sourceNode != null ) {
