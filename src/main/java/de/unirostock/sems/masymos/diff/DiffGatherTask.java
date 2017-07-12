@@ -126,13 +126,13 @@ public class DiffGatherTask implements Callable<Long>, Priority {
 		parameter.put("limit", limit);
 		
 		// do filtering
-		String query = "Match (a:DOCUMENT)-[:HAS_SUCCESSOR]->(b:DOCUMENT) Where NOT (a)-->(:DIFF)-->(b) and (a)-->(:MODEL) and (b)-->(:MODEL) Return a,b Limit {limit}";
+		String query = "Match (a:DOCUMENT)-[:HAS_SUCCESSOR]->(b:DOCUMENT) Where NOT (a)-->(:DIFF)<--(b) and (a)-->(:MODEL) and (b)-->(:MODEL) Return a,b Limit {limit}";
 		if( Property.ModelType.CELLML.equals(typeFilter) ) {
-			query = "Match (a:DOCUMENT)-[:HAS_SUCCESSOR]->(b:DOCUMENT) Where NOT (a)-->(:DIFF)-->(b) and (a)-->(:CELLML_MODEL) and (b)-->(:CELLML_MODEL) Return a,b Limit {limit}";
+			query = "Match (a:DOCUMENT)-[:HAS_SUCCESSOR]->(b:DOCUMENT) Where NOT (a)-->(:DIFF)<--(b) and (a)-->(:CELLML_MODEL) and (b)-->(:CELLML_MODEL) Return a,b Limit {limit}";
 			log.debug("restrict to CELLML models");
 		}
 		else if( Property.ModelType.SBML.equals(typeFilter) ) {
-			query = "Match (a:DOCUMENT)-[:HAS_SUCCESSOR]->(b:DOCUMENT) Where NOT (a)-->(:DIFF)-->(b) and (a)-->(:SBML_MODEL) and (b)-->(:SBML_MODEL) Return a,b Limit {limit}";
+			query = "Match (a:DOCUMENT)-[:HAS_SUCCESSOR]->(b:DOCUMENT) Where NOT (a)-->(:DIFF)<--(b) and (a)-->(:SBML_MODEL) and (b)-->(:SBML_MODEL) Return a,b Limit {limit}";
 			log.debug("restrict to SBML models");
 		}
 		
